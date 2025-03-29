@@ -1,0 +1,2 @@
+DOMAIN = "aguacatec_rewards"
+
