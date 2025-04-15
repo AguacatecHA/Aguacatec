@@ -36,32 +36,69 @@ class AguacatecUserSensor(SensorEntity):
 
     async def _fetch_data(self):
         try:        
-            url = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/gviz/tq?tqx=out:csv&sheet=Sheet1"
-            async with self._session.get(url) as response:
+            urlAguacoins = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=0"
+            async with self._session.get(urlAguacoins) as response:
                 if response.status != 200:
                     _LOGGER.error(f"Error fetching data: {response.status}")
                     return None
                 text = await response.text()
+            urlSorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=809535125"
+            async with self._session.get(urlSorteo) as response:
+                if response.status != 200:
+                    _LOGGER.error(f"Error fetching data: {response.status}")
+                    return None
+                textSorteo = await response.text()
+
         except Exception as e:
             _LOGGER.error(f"Exception fetching data: {e}")
             return None
 
+        aguacoins_result = None
         lines = text.splitlines()
         if len(lines) < 2:
+            aguacoins_result = None
+        else:
+            headers = lines[0].split(',')
+            for line in lines[1:]:
+                values = line.split(',')
+                if values[0] == self._username:
+                    aguacoins_result = dict(zip(headers[1:], values[1:]))  # Excluye "Usuario Telegram"
+                    break
+
+        numeros_sorteos = []
+        lines = textSorteo.splitlines()
+        if len(lines) < 2:
+            numeros_sorteos = []
+        else:
+            headers = lines[0].split(',')
+            for line in lines[1:]:
+                values = line.split(',')
+                if len(values) >= 2 and values[1] == self._username:  # Columna B es el nombre de usuario
+                    numeros_sorteos.append(values[0])  # Columna A es el ID                    
+            attributes_sorteo = {}
+            for i in [2, 3, 4]: 
+                values = lines[i].split(',')
+                attr_name = values[3].strip() if len(values) > 3 and values[3] else None
+                if attr_name:  # Solo procesar si el nombre del atributo no está vacío
+                    # Obtener valor de columna E (índice 4), o "Vacio" si no existe o está vacío
+                    attr_value = values[4].strip() if len(values) > 4 and values[4].strip() else "Vacio"
+                    attributes_sorteo[attr_name] = attr_value
+        if aguacoins_result is None and not numeros_sorteos and not attributes_sorteo:
             return None
 
-        headers = lines[0].strip('"').split('","')
-        for line in lines[1:]:
-            values = line.strip('"').split('","')
-            if values[0] == self._username:
-                return dict(zip(headers[1:], values[1:]))  # Excluye "Usuario Telegram"
-        return None
+        # Combinar resultados
+        result = aguacoins_result or {}
+        if numeros_sorteos:
+            result['Numeros Sorteo'] = numeros_sorteos
+        if attributes_sorteo:
+            result.update(attributes_sorteo)  
+        return result
 
     async def async_update(self):
         data = await self._fetch_data()
         if data:
-            self._state = data.get("Aguacoins", "No data")  # Estado principal: Aguacoins
+            self._state = data.get("Aguacoins", "No hay datos")  # Estado principal: Aguacoins
             self._attributes = data  # Otros valores como atributos
         else:
-            self._state = "User not found"
+            self._state = "Usuario no Encontrado"
             self._attributes = {}

@@ -1,7 +1,7 @@
 {
     "domain": "aguacatec_rewards",
     "name": "Aguacatec Rewards Integration",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "documentation": "https://github.com/AguacatecHA/Aguacatec-Rewards",
     "requirements": [
       "aiohttp"
