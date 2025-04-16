@@ -1,4 +1,4 @@
-# 🥑🪙 Componente Aguacatec 
+# 🥑 Componente Aguacatec 🥑
 ## ¿Que puede hacer este Componente Aguacatec?
 
 «Aguacatec» Es un componente para [Home Assistant](https://home-assistant.io/) que permite obtener los beneficios de tu suscripcion de Aguacatec para visualizarlo en tu instalación de Home Assistant, y asi tener toda la información actualizada.
