@@ -1,2 +1,0 @@
-DOMAIN = "aguacatec_rewards"
-
