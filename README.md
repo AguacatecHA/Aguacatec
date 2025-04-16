@@ -3,19 +3,27 @@
 
 «Aguacatec» Es un componente para [Home Assistant](https://home-assistant.io/) que permite obtener los beneficios de tu suscripcion de Aguacatec para visualizarlo en tu instalación de Home Assistant, y asi tener toda la información actualizada.
 
-### Manual
 
-Deberás añadir el repositorio personalizado en HACS:
+### Mediante HACS (Recomendado)
 
-```
-HACS -> Integraciones -> Tres puntos -> Repositorios Personalizados
-```
+Para instalar el componente usando HACS:
 
-Copias la URL del reposotiro ( https://github.com/AguacatecHA/Aguacatec ), como categoría seleccionas _Integración_ y pulsas en _Añadir_.
+1. Haz Click en los tres puntos en la parte de arriba de la esquina del menu de HACKS.
+2. Selecciona **Repositorio Personalizado**.
+3. Añade la URL del repositorio: `https://github.com/AguacatecHA/Aguacatec`.
+4. Seleciona el tipo: **Integracion**.
+5. Haz click en el boton **Añadir**.
 
-Una vez añadido el repositorio, lo instalas.
+<details>
+<summary>Fuera de HACS</summary>
 
-## Configuration
+1. Descarga la ultima release de la integracion Aguacatec de **[GitHub Releases](https://github.com/AguacatecHA/Aguacatec/releases)**.
+2. Extrae de la descarga los ficheros y pon la carpeta `aguacatec` en la carpeta `custom_components` de tu Home Assistant (usualmente localizada dentro de `config/custom_components`).
+3. Reinicia tu Home Assistant para cargar la nueva integracion.
+
+</details>
+
+## Configuracion
 
 Para añadir la integracion a tu instancia de Home Assistant, usa el boton:
 
