@@ -39,11 +39,13 @@ Para añadir la integracion a tu instancia de Home Assistant, usa el boton:
 
 Una vez instalado, ve a _Dispositivos y Servicios -> Añadir Integración_ y busca _Aguacatec_.
 
+![image](https://github.com/user-attachments/assets/f43a726d-5779-43ae-8b0f-b6013d7a314c)
+
 El asistente te irá solicitando los datos, como el ID que recibiste cuando te hiciste patreon y tu nombre de usuario de telegram, si no conoces alguno de los datos preguntame en [Telegram](https://t.me/aguacatec_es)
 
-![image](https://github.com/user-attachments/assets/4e81fefc-86ae-4701-9d6d-f0ec75cfcfce)
+![image](https://github.com/user-attachments/assets/58755dc0-10bc-4aa3-9686-4021fcac3cdd)
 
 
-Una vez configurado, tendrás la integración con la entidad de tu nombre de usuario y los atributos con toda tu informacion. 
+Una vez configurado, tendrás la integración con la entidad de tu nombre de usuario y los sensores con toda tu informacion. 
 
-![image](https://github.com/user-attachments/assets/6ad6e8a0-7881-4df9-9af0-51c5037331fb)
+![image](https://github.com/user-attachments/assets/76e20047-d241-4379-bbda-1ee63ad804eb)
