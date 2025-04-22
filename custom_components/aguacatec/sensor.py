@@ -46,7 +46,7 @@ async def crear_sensores(hass: HomeAssistant, config: dict, data_fetcher):
         name=f"Aguacatec {usuario}",
         manufacturer="Aguacatec",
         model="Informacion de Aguacatec",
-        sw_version="0.0.4",
+        sw_version="0.0.5",
     )
 
     if datos:
@@ -80,13 +80,25 @@ class AguacatecDataFetcher:
                     return None
                 texto = await respuesta.text()
 
-            # Obtener datos de Sorteo
+            # Obtener Numeros del Sorteo
             urlSorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=809535125"
             async with self._session.get(urlSorteo) as respuesta:
                 if respuesta.status != 200:
-                    _LOGGER.error(f"Error al obtener datos de Sorteo: {respuesta.status}")
+                    _LOGGER.error(f"Error al obtener los numeros del Sorteo: {respuesta.status}")
                     return None
                 texto_sorteo = await respuesta.text()
+
+            # Obtener Datos del Sorteo
+            datosSorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=992544740"
+            async with self._session.get(datosSorteo) as respuesta:
+                if respuesta.status != 200:
+                    _LOGGER.error(f"Error al obtener datos de Sorteo: {respuesta.status}")
+                    return None
+                datos_sorteo = await respuesta.text()
+
+
+
+
 
         except Exception as e:
             _LOGGER.error(f"Excepción al obtener datos: {e}")
@@ -105,7 +117,6 @@ class AguacatecDataFetcher:
 
         # Procesar datos de Sorteo
         numeros_sorteos = []
-        atributos_sorteo = {}
         lineas = texto_sorteo.splitlines()
         if len(lineas) >= 2:
             cabeceras = lineas[0].split(',')
@@ -113,12 +124,18 @@ class AguacatecDataFetcher:
                 valores = linea.split(',')
                 if len(valores) >= 2 and valores[1] == self._usuario:
                     numeros_sorteos.append(valores[0])  # Columna A es el ID
-            for i in [2, 3, 4]:
-                if i < len(lineas):
-                    valores = lineas[i].split(',')
-                    nombre_atributo = valores[3].strip() if len(valores) > 3 and valores[3] else None
+
+
+        # Procesar datos de Atributos del Sorteo
+        atributos_sorteo = {}
+        lineas = datos_sorteo.splitlines()
+        if len(lineas) >= 2:
+            for linea in lineas[1:]:  # Empezar desde la segunda fila (ignorar encabezado)
+                valores = linea.split(',')
+                if len(valores) >= 2:
+                    nombre_atributo = valores[0].strip()  # Columna A (Dato)
                     if nombre_atributo and nombre_atributo in CAMPOS_SENSORES:
-                        valor_atributo = valores[4].strip() if len(valores) > 4 and valores[4].strip() else "Vacio"
+                        valor_atributo = valores[1].strip() if len(valores) > 1 and valores[1].strip() else "Vacio"
                         atributos_sorteo[nombre_atributo] = valor_atributo
 
         if resultado_aguacoins is None and not numeros_sorteos and not atributos_sorteo:
