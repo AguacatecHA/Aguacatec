@@ -15,7 +15,7 @@ CAMPOS_SENSORES = {
     "Categoría": {"nombre": "Categoría", "icono": "mdi:egg-outline"},
     "Suscripción": {"nombre": "Suscripción", "icono": "mdi:calendar-sync"},
     "Aguacoins": {"nombre": "Aguacoins", "icono": "mdi:checkbox-multiple-blank-circle"},
-    "Sesiones": {"nombre": "Sesiones", "icono": "mdi:lifebuoy"},
+    "Sesiones Extra": {"nombre": "Sesiones Extra", "icono": "mdi:lifebuoy"},
     "Tarjetas": {"nombre": "Tarjetas", "icono": "mdi:palette"},
     "Numeros Sorteo": {"nombre": "Números Sorteo", "icono": "mdi:ticket"},
     "Fecha último sorteo": {"nombre": "Fecha Último Sorteo", "icono": "mdi:calendar-star"},
