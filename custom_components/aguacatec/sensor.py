@@ -122,7 +122,7 @@ class AguacatecDataFetcher:
             cabeceras = lineas[0].split(',')
             for linea in lineas[1:]:
                 valores = linea.split(',')
-                if len(valores) >= 2 and valores[1] == self._usuario:
+                if len(valores) >= 2 and self._usuario in valores[1]:
                     numeros_sorteos.append(valores[0])  # Columna A es el ID
 
 
