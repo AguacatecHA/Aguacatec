@@ -4,7 +4,7 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-from .const import DOMAIN
+from .const import DOMAIN, VERSION
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
