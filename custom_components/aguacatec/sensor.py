@@ -6,7 +6,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo
 
-from . import DOMAIN
+from . import DOMAIN, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ async def crear_sensores(hass: HomeAssistant, config: dict, data_fetcher):
         name=f"Aguacatec {usuario}",
         manufacturer="Aguacatec",
         model="Informacion de Aguacatec",
-        sw_version="0.0.5",
+        sw_version=VERSION,
     )
 
     if datos:
