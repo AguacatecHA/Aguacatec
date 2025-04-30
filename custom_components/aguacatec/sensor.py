@@ -17,10 +17,11 @@ CAMPOS_SENSORES = {
     "Aguacoins": {"nombre": "Aguacoins", "icono": "mdi:checkbox-multiple-blank-circle"},
     "Sesiones Extra": {"nombre": "Sesiones Extra", "icono": "mdi:lifebuoy"},
     "Tarjetas": {"nombre": "Tarjetas", "icono": "mdi:palette"},
+    "Premio": {"nombre": "Sorteo Premiado", "icono": "mdi:trophy-award"},
     "Numeros Sorteo": {"nombre": "Números Sorteo", "icono": "mdi:ticket"},
     "Fecha último sorteo": {"nombre": "Fecha Último Sorteo", "icono": "mdi:calendar-star"},
     "Nº premiado": {"nombre": "Número Premiado", "icono": "mdi:trophy"},
-    "Ganador": {"nombre": "Ganador", "icono": "mdi:party-popper"},
+    "Ganador": {"nombre": "Ultimo Ganador", "icono": "mdi:party-popper"},
 }
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities):
@@ -97,9 +98,6 @@ class AguacatecDataFetcher:
                 datos_sorteo = await respuesta.text()
 
 
-
-
-
         except Exception as e:
             _LOGGER.error(f"Excepción al obtener datos: {e}")
             return None
@@ -162,7 +160,7 @@ class AguacatecSensor(SensorEntity):
         self._usuario = usuario
         self._estado = None
         self._attr_name = f"{CAMPOS_SENSORES.get(clave, {'nombre': clave})['nombre']}"
-        self._attr_unique_id = f"{DOMAIN}_{usuario}_{clave.lower().replace(' ', '_')}"
+        self._attr_unique_id = f"{DOMAIN}_{CAMPOS_SENSORES.get(clave, {'nombre': clave})['nombre'].lower().replace(' ', '_')}"
         self._attr_icon = icono
         self._attr_device_info = device_info  # Vincular al dispositivo
         self._attr_scan_interval = 60  # Actualizar cada 60 segundos
