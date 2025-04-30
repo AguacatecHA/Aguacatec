@@ -1,7 +1,7 @@
 {
     "domain": "aguacatec",
     "name": "Aguacatec",
-    "version": "0.0.7",
+    "version": "0.0.8",
     "documentation": "https://github.com/AguacatecHA/Aguacatec",
     "requirements": [
       "aiohttp"
