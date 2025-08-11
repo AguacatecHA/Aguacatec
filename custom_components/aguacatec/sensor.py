@@ -1,10 +1,13 @@
 import logging
+import asyncio
+import csv
 from aiohttp import ClientSession
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.entity import DeviceInfo
+from async_timeout import timeout
 
 from . import DOMAIN, VERSION
 
@@ -20,6 +23,7 @@ CAMPOS_SENSORES = {
     "Premio": {"nombre": "Sorteo Premiado", "icono": "mdi:trophy-award"},
     "Numeros Sorteo": {"nombre": "Números Sorteo", "icono": "mdi:ticket"},
     "Fecha último sorteo": {"nombre": "Fecha Último Sorteo", "icono": "mdi:calendar-star"},
+    "Fecha próximo sorteo": {"nombre": "Fecha Próximo Sorteo", "icono": "mdi:calendar"},
     "Nº premiado": {"nombre": "Número Premiado", "icono": "mdi:trophy"},
     "Ganador": {"nombre": "Ultimo Ganador", "icono": "mdi:party-popper"},
 }
@@ -28,6 +32,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
     config = hass.data[DOMAIN][entry.entry_id]
     # Crear una instancia para obtener datos compartida entre sensores
     data_fetcher = AguacatecDataFetcher(hass, config)
+    await data_fetcher.async_init()  # Inicializar la sesión
     # Crear sensores basados en los campos definidos
     sensores = await crear_sensores(hass, config, data_fetcher)
     async_add_entities(sensores)
@@ -68,84 +73,105 @@ class AguacatecDataFetcher:
         self.hass = hass
         self._usuario = config["user_telegram"]
         self._idSpreadsheet = config["id_aguacatec"]
-        self._session = async_get_clientsession(hass)
+        self._session = None  # Inicializar en async_init
         self.datos = None
+        self._last_fetch_time = 0
+        self._cache_duration = 600  # Cache de 10 minutos
+        self._max_retries = 5  # Más reintentos para manejar errores 429
+        self._base_delay = 3  # Retraso inicial más largo
+
+    async def async_init(self):
+        """Inicializa la sesión asíncrona."""
+        self._session = async_get_clientsession(self.hass)
+
+    async def _fetch_with_retry(self, url, retries=0):
+        """Realiza una solicitud HTTP con reintentos en caso de fallo."""
+        try:
+            async with timeout(15):  # Timeout de 15 segundos por solicitud
+                async with self._session.get(url) as respuesta:
+                    if respuesta.status == 200:
+                        return await respuesta.text()
+                    elif respuesta.status == 429 and retries < self._max_retries:
+                        delay = self._base_delay * (2 ** retries)  # Retraso exponencial
+                        _LOGGER.warning(f"Error 429: Demasiadas solicitudes para {url}. Reintentando en {delay}s...")
+                        await asyncio.sleep(delay)
+                        return await self._fetch_with_retry(url, retries + 1)
+                    else:
+                        _LOGGER.error(f"Error al obtener datos desde {url}: {respuesta.status}")
+                        return None
+        except Exception as e:
+            _LOGGER.error(f"Excepción al obtener datos desde {url}: {e}")
+            return None
 
     async def _obtener_datos(self):
+        """Obtiene datos de las hojas de cálculo con cacheo y reintentos."""
+        # Verificar si los datos en caché son recientes
+        current_time = self.hass.loop.time()
+        if self.datos and (current_time - self._last_fetch_time) < self._cache_duration:
+            _LOGGER.debug("Devolviendo datos desde caché")
+            return self.datos
+
+        resultado_aguacoins = None
+        atributos_sorteo = {}
+        numeros_sorteos = []
+
         try:
             # Obtener datos de Aguacoins
-            urlAguacoins = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=0"
-            async with self._session.get(urlAguacoins) as respuesta:
-                if respuesta.status != 200:
-                    _LOGGER.error(f"Error al obtener datos de Aguacoins: {respuesta.status}")
-                    return None
-                texto = await respuesta.text()
+            url_aguacoins = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=0"
+            texto_aguacoins = await self._fetch_with_retry(url_aguacoins)
+            if texto_aguacoins:
+                reader = csv.reader(texto_aguacoins.splitlines())
+                cabeceras = next(reader, None)  # Leer encabezados
+                if cabeceras:
+                    for row in reader:
+                        if row and row[0] == self._usuario:
+                            resultado_aguacoins = dict(zip(cabeceras[1:], row[1:]))
+                            break
+                else:
+                    _LOGGER.warning("No se encontraron encabezados en los datos de Aguacoins")
 
-            # Obtener Numeros del Sorteo
-            urlSorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=809535125"
-            async with self._session.get(urlSorteo) as respuesta:
-                if respuesta.status != 200:
-                    _LOGGER.error(f"Error al obtener los numeros del Sorteo: {respuesta.status}")
-                    return None
-                texto_sorteo = await respuesta.text()
+            # Obtener Números del Sorteo
+            url_sorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=809535125"
+            texto_sorteo = await self._fetch_with_retry(url_sorteo)
+            if texto_sorteo:
+                reader = csv.reader(texto_sorteo.splitlines())
+                cabeceras = next(reader, None)
+                if cabeceras:
+                    for row in reader:
+                        if len(row) >= 2 and self._usuario in row[1]:
+                            numeros_sorteos.append(row[0])
+                else:
+                    _LOGGER.warning("No se encontraron encabezados en los datos del Sorteo")
 
             # Obtener Datos del Sorteo
-            datosSorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=992544740"
-            async with self._session.get(datosSorteo) as respuesta:
-                if respuesta.status != 200:
-                    _LOGGER.error(f"Error al obtener datos de Sorteo: {respuesta.status}")
-                    return None
-                datos_sorteo = await respuesta.text()
+            url_datos_sorteo = f"https://docs.google.com/spreadsheets/d/{self._idSpreadsheet}/export?format=csv&id={self._idSpreadsheet}&gid=992544740"
+            texto_datos_sorteo = await self._fetch_with_retry(url_datos_sorteo)
+            if texto_datos_sorteo:
+                reader = csv.reader(texto_datos_sorteo.splitlines())
+                next(reader, None)  # Ignorar encabezado
+                for row in reader:
+                    if len(row) >= 2 and row[0].strip() in CAMPOS_SENSORES:
+                        atributos_sorteo[row[0].strip()] = row[1].strip() if row[1].strip() else "Vacio"
 
+            # Combinar resultados
+            resultado = resultado_aguacoins or {}
+            if numeros_sorteos:
+                resultado['Numeros Sorteo'] = numeros_sorteos
+            if atributos_sorteo:
+                resultado.update(atributos_sorteo)
+
+            # Almacenar datos en caché solo si se obtuvo algún dato
+            if resultado:
+                self.datos = resultado
+                self._last_fetch_time = current_time
+            else:
+                _LOGGER.warning("No se obtuvieron datos nuevos; manteniendo caché anterior")
+            
+            return self.datos
 
         except Exception as e:
-            _LOGGER.error(f"Excepción al obtener datos: {e}")
-            return None
-
-        # Procesar datos de Aguacoins
-        resultado_aguacoins = None
-        lineas = texto.splitlines()
-        if len(lineas) >= 2:
-            cabeceras = lineas[0].split(',')
-            for linea in lineas[1:]:
-                valores = linea.split(',')
-                if valores[0] == self._usuario:
-                    resultado_aguacoins = dict(zip(cabeceras[1:], valores[1:]))  # Excluye "Usuario Telegram"
-                    break
-
-        # Procesar datos de Sorteo
-        numeros_sorteos = []
-        lineas = texto_sorteo.splitlines()
-        if len(lineas) >= 2:
-            cabeceras = lineas[0].split(',')
-            for linea in lineas[1:]:
-                valores = linea.split(',')
-                if len(valores) >= 2 and self._usuario in valores[1]:
-                    numeros_sorteos.append(valores[0])  # Columna A es el ID
-
-
-        # Procesar datos de Atributos del Sorteo
-        atributos_sorteo = {}
-        lineas = datos_sorteo.splitlines()
-        if len(lineas) >= 2:
-            for linea in lineas[1:]:  # Empezar desde la segunda fila (ignorar encabezado)
-                valores = linea.split(',')
-                if len(valores) >= 2:
-                    nombre_atributo = valores[0].strip()  # Columna A (Dato)
-                    if nombre_atributo and nombre_atributo in CAMPOS_SENSORES:
-                        valor_atributo = valores[1].strip() if len(valores) > 1 and valores[1].strip() else "Vacio"
-                        atributos_sorteo[nombre_atributo] = valor_atributo
-
-        if resultado_aguacoins is None and not numeros_sorteos and not atributos_sorteo:
-            return None
-
-        # Combinar resultados
-        resultado = resultado_aguacoins or {}
-        if numeros_sorteos:
-            resultado['Numeros Sorteo'] = numeros_sorteos
-        if atributos_sorteo:
-            resultado.update(atributos_sorteo)
-        return resultado
+            _LOGGER.error(f"Excepción general al obtener datos: {e}")
+            return self.datos  # Devolver datos en caché si existen
 
     async def async_update(self):
         """Actualizar los datos compartidos."""
@@ -163,7 +189,7 @@ class AguacatecSensor(SensorEntity):
         self._attr_unique_id = f"{DOMAIN}_{CAMPOS_SENSORES.get(clave, {'nombre': clave})['nombre'].lower().replace(' ', '_')}"
         self._attr_icon = icono
         self._attr_device_info = device_info  # Vincular al dispositivo
-        self._attr_scan_interval = 60  # Actualizar cada 60 segundos
+        self._attr_scan_interval = 600  # Actualizar cada 10 minutos
 
     @property
     def state(self):
